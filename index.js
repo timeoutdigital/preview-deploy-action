@@ -1,40 +1,30 @@
 async function action() {
-    const { stripIndent } = require("common-tags")
-
     const core = require("@actions/core")
     const exec = require("@actions/exec")
     const github = require("@actions/github")
+    const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
 
-
-    const chart_path = "charts/gp-web"
-
-    const app_name = core.getInput(`app_name`);
-    if (!app_name) {
+    const appName = core.getInput(`appName`);
+    if (!appName) {
         console.log("App Name is required");
         return; 
     }
 
-    const command = core.getInput(`command`);
-    if (!command) {
-        console.log("Command is required");
+    const action = core.getInput(`action`);
+    if (!action) {
+        console.log("Action is required");
         return; 
     }
-
-    const namespace = core.getInput(`namespace`);
-    if (!namespace) {
-        console.log("namespace is required");
-        return; 
-    }
-   
-    const hostname = core.getInput(`hostname`);
+    
+    const domainName = core.getInput(`domainName`);
     const imageTag = core.getInput(`imageTag`);
     const graffitiSecret = core.getInput(`graffitiSecret`);
     const accountId = core.getInput(`accountId`);
-    
-    
-    if (command === 'install') {
-        if (!hostname) {
-            console.log("hostname is required");
+
+    if (action === 'install') {
+        
+        if (!domainName) {
+            console.log("domainName is required");
             return; 
         }
 
@@ -53,37 +43,34 @@ async function action() {
             return; 
         }
     }
+    
+    // hostname that will resolve to deployment 
+    const hostname = `www-${github.context.issue.number}.${domainName}`;
+    const namespace = `pr-${github.context.issue.number}`;   
+    // Location of helm chart
+    const chart_path = `charts/${appName}`;
 
-    const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-
-
-    console.log(`echo ${command} ${namespace} ${app_name}`)
-
-    let myOutput = '';
-    let myError = '';
-    let myCode = 0;
+    let cmdOutput = '';
+    let cmdError = '';
 
     const options = {};
     options.listeners = {
-        exec: (code) => {
-            myCode = code
-        },
         stdout: (data) => {
-            myOutput += data.toString();
+            cmdOutput += data.toString();
         },
         stderr: (data) => {
-            myError += data.toString();
+            cmdError += data.toString();
         }
     };
     
-    if (command === 'install') {
+    if (action === 'install') {
         
         try {
 
             const GITHUB_WORKSPACE = process.env.GITHUB_WORKSPACE;
             const helm_args = [
                 'upgrade', 
-                app_name,
+                appName,
                 '--install', 
                 '--wait', 
                 '--create-namespace', 
@@ -104,54 +91,54 @@ async function action() {
                 `image.repository=${accountId}.dkr.ecr.eu-west-1.amazonaws.com/gp-web`
             ] 
 
-            let result = await exec.exec('helm', helm_args, options);
-            console.log(`exec.exec('helm', ${helm_args}, ${options})`)
-            console.log(`response ${result}`)
+            await exec.exec('helm', helm_args, options);
             console.log(`Install  Deployment `)
            
         } catch(err) {
-            console.log(`output ${myOutput}`)
-            const message = `Failed to create deployment ${myError}`;
+            console.log(`output ${cmdOutput}`)
+            core.setOutput("output", cmdError);
             await octokit.issues.createComment({
                 ...github.context.repo,
                 issue_number: github.context.issue.number,
-                body: message,
+                body: `Failed to create deployment ${cmdError}`,
             });
             return;
         }
-        const message = `Success: http://www-${hostname}.digital.timeout.com`;
+        
+        core.setOutput("output", cmdOutput);
         await octokit.issues.createComment({
             ...github.context.repo,
             issue_number: github.context.issue.number,
-            body: message,
+            body: `Success: http://${hostname}`,
         });
 
-    } else if (command === 'delete') {
+    } else if (action === 'delete') {
         try {
-            let result = await exec.exec('helm', ['status', app_name, '-n', namespace], options);
-            console.log(`response ${result}`)
+            await exec.exec('helm', ['status', appName, '-n', namespace], options);
             console.log(`Deployment exists`)
             try {
-                let result = await exec.exec('helm', ['delete', app_name, '-n', namespace], options);
-                console.log(`response ${result}`)
+                await exec.exec('helm', ['delete', appName, '-n', namespace], options);
                 console.log(`Delete Deployment `)
             } catch(err) {
-                console.log(`output ${myOutput}`)
+                console.log(`output ${cmdError}`)
+                core.setOutput("output", cmdError);
                 console.log(`Failed to delete deployment`)
+                return
             }
         } catch(err) {
-            console.log(`output ${myOutput}`)
+            console.log(`output ${cmdError}`)
+            core.setOutput("output", cmdError);
             console.log(`No stack present`)
-        }
-        finally {
             return 
         }
+        core.setOutput("output", cmdOutput);
+        return 
+        
     } else {
-        console.log(`${command} not valid`)
+        console.log(`${action} not implemented`)
+        core.setOutput("output", `${action} not implemented`);
         return
     }
-
-    
 }
 
 if (typeof require !== 'undefined' &&  require.main === module) {
