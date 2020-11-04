@@ -23,19 +23,19 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1  
+          aws-region: eu-west-1
 
       - name: Deploy
         uses: timeoutdigital/preview-deploy-action@master
         env:
           KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           action: install
           app_name: gp-web
           domain_name: "digital.timeout.com"
-          imageTag: ${{ github.sha }} 
-          graffitiSecret: ${{ secrets.GRAFFITI_CLIENT_SECRET }} 
+          imageTag: ${{ github.sha }}
+          graffitiSecret: ${{ secrets.GRAFFITI_CLIENT_SECRET }}
           accountId: ${{ secrets.AWS_ACCOUNT_ID }}
 ```
 
@@ -43,7 +43,7 @@ jobs:
 
 ### Secrets
 
-One or more **secrets** needs to be created to store cluster credentials. (see [here](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets) for help on creating secrets). 
+One or more **secrets** needs to be created to store cluster credentials. (see [here](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets) for help on creating secrets).
 
 #### Basic
 - **KUBE_CONFIG_DATA**: A `base64` representation of `~/.kube/config` file.
