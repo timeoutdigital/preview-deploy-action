@@ -1,0 +1,8 @@
+**/*.md
+.editorconfig
+.prettierignore
+.gitignore
+Dockefile
+package.json
+*.yaml
+*.sh
